@@ -1,6 +1,8 @@
 package mondradiko.jbundler.codegen;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,6 +72,12 @@ public class Codegen {
 					});
 				}
 				
+				try {
+					moveTsFiles(new File(config.getCodegenDirectory()), targetDirectory);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
 				dialog.setVisible(false);
 			}
 		}.start();
@@ -89,6 +97,31 @@ public class Codegen {
 		}
 		return files;
 	}
+	
+	private static void moveTsFiles(File directory, File targetDirectory) throws IOException {
+		int prefixLength = directory.getAbsolutePath().length();
+		
+		ArrayList<File> files = new ArrayList<>();
+		for (File file : directory.listFiles()) {
+			if (file.getName().equalsIgnoreCase("toml"))
+				continue;
+
+			if (file.isDirectory()) {
+				moveTsFiles(file, new File(targetDirectory, file.getName()));
+			} else if (file.getName().endsWith(".ts")) {
+				files.add(file);
+			}
+		}
+		
+		for (File file : files) {
+			String path = file.getAbsolutePath().substring(prefixLength);
+			if (file.getName().endsWith(".d.ts")) {
+				path = path.substring(0, path.length() - 5) + ".ts";
+			}
+			File destination = new File(targetDirectory, path);
+			copyFile(file, destination);
+		}
+	}
 
 	private static boolean generateTypescript(File pythonFile, File source, File target) {
 		target.getParentFile().mkdirs();
@@ -106,5 +139,19 @@ public class Codegen {
 			e.printStackTrace();
 		}
 		return false;
+	}
+	
+	private static void copyFile(File source, File destination) throws IOException {
+		FileInputStream in = new FileInputStream(source);
+		FileOutputStream out = new FileOutputStream(destination);
+		
+		byte[] b = new byte[512];
+		int l = 0;
+		while ((l = in.read(b)) > 0) {
+			out.write(b, 0, l);
+		}
+		
+		in.close();
+		out.close();
 	}
 }
